@@ -728,7 +728,7 @@ if is_service_enabled horizon; then
 fi
 
 if is_service_enabled q-agt; then
-    if [[ "$Q_PLUGIN" = "openvswitch" ]]; then
+    if [[ "$Q_PLUGIN" = "openvswitch" || "$Q_PLUGIN" = "nec" ]]; then
         # Install deps
         # FIXME add to files/apts/quantum, but don't install if not needed!
         if [[ "$os_PACKAGE" = "deb" ]]; then
@@ -1212,6 +1212,11 @@ if is_service_enabled quantum; then
         Q_PLUGIN_CONF_FILENAME=linuxbridge_conf.ini
         Q_DB_NAME="quantum_linux_bridge"
         Q_PLUGIN_CLASS="quantum.plugins.linuxbridge.lb_quantum_plugin.LinuxBridgePluginV2"
+    elif [[ "$Q_PLUGIN" = "nec" ]]; then
+        Q_PLUGIN_CONF_PATH=etc/quantum/plugins/nec
+        Q_PLUGIN_CONF_FILENAME=nec.ini
+        Q_DB_NAME="quantum_nec"
+        Q_PLUGIN_CLASS="quantum.plugins.nec.nec_plugin.NECPluginV2"
     else
         echo "Unknown Quantum plugin '$Q_PLUGIN'.. exiting"
         exit 1
@@ -1290,6 +1295,10 @@ if is_service_enabled q-svc; then
         if [[ "$LB_VLAN_RANGES" != "" ]]; then
             iniset /$Q_PLUGIN_CONF_FILE VLANS network_vlan_ranges $LB_VLAN_RANGES
         fi
+    elif [[ "$Q_PLUGIN" = "nec" ]]; then
+        iniset $Q_CONF_FILE DEFAULT api_extensions_path quantum/plugins/nec/extensions/
+        iniset /$Q_PLUGIN_CONF_FILE OFC host ${OFC_HOST:-127.0.0.1}
+        iniset /$Q_PLUGIN_CONF_FILE OFC port ${OFC_PORT:-8888}
     fi
 fi
 
@@ -1340,6 +1349,12 @@ if is_service_enabled q-agt; then
         fi
 
        AGENT_BINARY="$QUANTUM_DIR/quantum/plugins/linuxbridge/agent/linuxbridge_quantum_agent.py"
+    elif [[ "$Q_PLUGIN" = "nec" ]]; then
+        # Set up integration bridge
+        OVS_BRIDGE=${OVS_BRIDGE:-br-int}
+        quantum_setup_ovs_bridge $OVS_BRIDGE
+        sudo ovs-vsctl --no-wait set-controller $OVS_BRIDGE tcp:${OFC_HOST:-127.0.0.1}
+        AGENT_BINARY="$QUANTUM_DIR/quantum/plugins/nec/agent/nec_quantum_agent.py"
     fi
 fi
 
@@ -1361,7 +1376,7 @@ if is_service_enabled q-dhcp; then
     iniset $Q_DHCP_CONF_FILE DEFAULT db_connection "mysql:\/\/$MYSQL_USER:$MYSQL_PASSWORD@$MYSQL_HOST\/$Q_DB_NAME?charset=utf8"
     quantum_setup_keystone $Q_DHCP_CONF_FILE DEFAULT set_auth_url
 
-    if [[ "$Q_PLUGIN" = "openvswitch" ]]; then
+    if [[ "$Q_PLUGIN" = "openvswitch" || "$Q_PLUGIN" = "nec" ]]; then
         iniset $Q_DHCP_CONF_FILE DEFAULT interface_driver quantum.agent.linux.interface.OVSInterfaceDriver
     elif [[ "$Q_PLUGIN" = "linuxbridge" ]]; then
         iniset $Q_DHCP_CONF_FILE DEFAULT interface_driver quantum.agent.linux.interface.BridgeInterfaceDriver
@@ -1543,7 +1558,7 @@ if is_service_enabled n-cpu; then
     fi
 
     QEMU_CONF=/etc/libvirt/qemu.conf
-    if is_service_enabled quantum && [[ $Q_PLUGIN = "openvswitch" ]] && ! sudo grep -q '^cgroup_device_acl' $QEMU_CONF ; then
+    if is_service_enabled quantum && [[ $Q_PLUGIN = "openvswitch" || $Q_PLUGIN = "nec" ]] && ! sudo grep -q '^cgroup_device_acl' $QEMU_CONF ; then
         # Add /dev/net/tun to cgroup_device_acls, needed for type=ethernet interfaces
         sudo chmod 666 $QEMU_CONF
         sudo cat <<EOF >> /etc/libvirt/qemu.conf
@@ -1930,7 +1945,7 @@ if is_service_enabled quantum; then
     add_nova_opt "quantum_admin_tenant_name=$SERVICE_TENANT_NAME"
     add_nova_opt "quantum_url=http://$Q_HOST:$Q_PORT"
 
-    if [[ "$Q_PLUGIN" = "openvswitch" ]]; then
+    if [[ "$Q_PLUGIN" = "openvswitch" || $Q_PLUGIN = "nec" ]]; then
         NOVA_VIF_DRIVER="nova.virt.libvirt.vif.LibvirtOpenVswitchDriver"
         LINUXNET_VIF_DRIVER="nova.network.linux_net.LinuxOVSInterfaceDriver"
     elif [[ "$Q_PLUGIN" = "linuxbridge" ]]; then
