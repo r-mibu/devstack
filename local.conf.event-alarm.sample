@@ -1,0 +1,26 @@
+[[local|localrc]]
+
+_PASSWD=password
+DATABASE_PASSWORD=$_PASSWD
+RABBIT_PASSWORD=$_PASSWD
+ADMIN_PASSWORD=$_PASSWD
+SERVICE_PASSWORD=$_PASSWD
+SERVICE_TOKEN=$_PASSWD
+
+LOGDIR=$DEST/logs
+#OFFLINE=True
+LOGFILE=$DEST/logs/stack.sh.log
+SCREEN_LOGDIR=$DEST/logs/screen
+
+HOST_IP=$(ip addr | sed -n -e 's|^    inet \(192.168.[0-9.]*\)/.*$|\1|p')
+
+CEILOMETER_REPO=https://github.com/r-mibu/ceilometer.git
+CEILOMETER_BRANCH=kilo-event-alarm
+
+disable_service n-net
+enable_service neutron,q-svc,q-agt,q-l3,q-dhcp,q-meta
+enable_service ceilometer-api
+enable_service ceilometer-acompute,ceilometer-acentral
+enable_service ceilometer-anotification,ceilometer-collector
+enable_service ceilometer-alarm-evaluator,ceilometer-alarm-notifier
+enable_service ceilometer-event-alarm-evaluator
