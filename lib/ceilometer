@@ -383,6 +383,7 @@ function start_ceilometer {
 
     run_process ceilometer-alarm-notifier "ceilometer-alarm-notifier --config-file $CEILOMETER_CONF"
     run_process ceilometer-alarm-evaluator "ceilometer-alarm-evaluator --config-file $CEILOMETER_CONF"
+    run_process ceilometer-event-alarm-evaluator "ceilometer-event-alarm-evaluator --config-file $CEILOMETER_CONF"
 }
 
 # stop_ceilometer() - Stop running processes
@@ -392,7 +393,7 @@ function stop_ceilometer {
         restart_apache_server
     fi
     # Kill the ceilometer screen windows
-    for serv in ceilometer-acompute ceilometer-acentral ceilometer-aipmi ceilometer-anotification ceilometer-collector ceilometer-api ceilometer-alarm-notifier ceilometer-alarm-evaluator; do
+    for serv in ceilometer-acompute ceilometer-acentral ceilometer-aipmi ceilometer-anotification ceilometer-collector ceilometer-api ceilometer-alarm-notifier ceilometer-alarm-evaluator ceilometer-event-alarm-evaluator; do
         stop_process $serv
     done
 }
